@@ -1,3 +1,5 @@
+    const GAME_VERSION = 'v3.4';
+
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x121a27);
     scene.fog = new THREE.Fog(0x121a27, 22, 118);
@@ -1365,7 +1367,7 @@
       moveForward: 0,
       moveStrafe: 0,
       sprint: false,
-      prevButtons: { leftTrigger: false, rightTrigger: false, leftPrimary: false, rightPrimary: false, rightStickPress: false },
+      prevButtons: { leftTrigger: false, rightTrigger: false, rightPrimary: false, anyJump: false },
       snapTurnCooldownMs: 0
     };
     const vrHands = { left: null, right: null };
@@ -1375,6 +1377,7 @@
     let pointerLocked = false;
 
     const crosshairEl = document.getElementById('crosshair');
+    const versionEl = document.getElementById('version');
     const messageEl = document.getElementById('message');
     const teamEl = document.getElementById('team');
     const progressEl = document.getElementById('progress');
@@ -1396,6 +1399,8 @@
     const creatorZoomOutBtn = document.getElementById('creatorZoomOut');
     const creatorZoomInBtn = document.getElementById('creatorZoomIn');
     const creatorStartBtn = document.getElementById('creatorStart');
+    if (versionEl) versionEl.textContent = GAME_VERSION;
+    document.title = 'Glitch Hunt 3D Extended ' + GAME_VERSION;
     const vrButtonEl = document.getElementById('vrButton');
     const dialogEl = document.getElementById('dialog');
     const dialogNameEl = document.getElementById('dialogName');
@@ -1748,9 +1753,10 @@
       const session = renderer.xr.getSession();
       if (!session) return;
 
-      let sawLeft = false;
-      let sawRight = false;
-      let fallbackMove = null;
+      let moveFromLeft = null;
+      let moveBest = null;
+      let turnBestX = 0;
+      let anyJumpPressed = false;
       for (const source of session.inputSources) {
         if (!source || !source.gamepad) continue;
         const gp = source.gamepad;
@@ -1770,48 +1776,39 @@
         const primaryPressed = !!buttons[4]?.pressed;
         const secondaryPressed = !!buttons[5]?.pressed;
         const stickPressed = !!buttons[3]?.pressed;
-        if (!fallbackMove || (Math.abs(moveCandidate.x) + Math.abs(moveCandidate.y)) > (Math.abs(fallbackMove.x) + Math.abs(fallbackMove.y))) {
-          fallbackMove = moveCandidate;
-        }
+        const sprintPressed = !!buttons[1]?.pressed;
+        const movePower = Math.abs(moveCandidate.x) + Math.abs(moveCandidate.y);
+        if (!moveBest || movePower > (Math.abs(moveBest.x) + Math.abs(moveBest.y))) moveBest = moveCandidate;
+        if (handed === 'left') moveFromLeft = moveCandidate;
+        if (handed === 'right' && Math.abs(moveCandidate.x) > Math.abs(turnBestX)) turnBestX = moveCandidate.x;
+        anyJumpPressed = anyJumpPressed || primaryPressed || secondaryPressed || stickPressed;
+        vrInput.sprint = vrInput.sprint || sprintPressed;
 
         if (handed === 'left') {
-          sawLeft = true;
-          vrInput.moveStrafe = moveCandidate.x;
-          vrInput.moveForward = moveCandidate.y;
-          vrInput.sprint = !!buttons[1]?.pressed || Math.abs(moveCandidate.y) > 0.88;
-
-          const wantsJump = primaryPressed || secondaryPressed || stickPressed;
-          if (wantsJump && !vrInput.prevButtons.leftPrimary) jumpPlayer();
-          vrInput.prevButtons.leftPrimary = wantsJump;
-
           if (triggerPressed && !vrInput.prevButtons.leftTrigger) interact();
           vrInput.prevButtons.leftTrigger = triggerPressed;
         } else if (handed === 'right') {
-          sawRight = true;
-          if (Math.abs(moveCandidate.x) > 0.7 && vrInput.snapTurnCooldownMs <= 0) {
-            player.yaw -= Math.sign(moveCandidate.x) * 0.45;
-            vrInput.snapTurnCooldownMs = 220;
-          }
-
           if (primaryPressed && !vrInput.prevButtons.rightPrimary) activateDash();
           vrInput.prevButtons.rightPrimary = primaryPressed;
 
           if (triggerPressed && !vrInput.prevButtons.rightTrigger) interact();
           vrInput.prevButtons.rightTrigger = triggerPressed;
-
-          if (stickPressed && !vrInput.prevButtons.rightStickPress) jumpPlayer();
-          vrInput.prevButtons.rightStickPress = stickPressed;
         }
       }
 
-      // Some browsers/controllers report handedness as "none"; fallback to left-stick locomotion.
-      if (!sawLeft) {
-        if (fallbackMove) {
-          vrInput.moveStrafe = fallbackMove.x;
-          vrInput.moveForward = fallbackMove.y;
-          vrInput.sprint = Math.abs(fallbackMove.y) > 0.88;
-        }
+      const locomotion = moveFromLeft || moveBest || { x: 0, y: 0 };
+      vrInput.moveStrafe = locomotion.x;
+      vrInput.moveForward = locomotion.y;
+      if (Math.abs(locomotion.y) > 0.88) vrInput.sprint = true;
+
+      if (!moveFromLeft && Math.abs(turnBestX) < 0.001 && moveBest) turnBestX = moveBest.x;
+      if (Math.abs(turnBestX) > 0.7 && vrInput.snapTurnCooldownMs <= 0) {
+        player.yaw -= Math.sign(turnBestX) * 0.45;
+        vrInput.snapTurnCooldownMs = 220;
       }
+
+      if (anyJumpPressed && !vrInput.prevButtons.anyJump) jumpPlayer();
+      vrInput.prevButtons.anyJump = anyJumpPressed;
     }
 
     function updateProgress() {
