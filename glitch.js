@@ -1,4 +1,4 @@
-    const GAME_VERSION = 'v4.2';
+    const GAME_VERSION = 'v4.3';
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x121a27);
@@ -13,22 +13,6 @@
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.xr.enabled = true;
     document.body.appendChild(renderer.domElement);
-
-    function makeVrStatusLabel() {
-      const canvas = document.createElement('canvas');
-      canvas.width = 1024;
-      canvas.height = 128;
-      const ctx = canvas.getContext('2d');
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false }));
-      sprite.scale.set(1.65, 0.2, 1);
-      sprite.position.set(0, -0.12, -1.1);
-      sprite.visible = false;
-      camera.add(sprite);
-      return { sprite, canvas, ctx, texture };
-    }
-    const vrStatusLabel = makeVrStatusLabel();
 
     const hemi = new THREE.HemisphereLight(0xffffff, 0x1b1b2d, 1.25);
     scene.add(hemi);
@@ -1399,7 +1383,6 @@
 
     const crosshairEl = document.getElementById('crosshair');
     const versionEl = document.getElementById('version');
-    const vrStatusTopEl = document.getElementById('vrStatusTop');
     const messageEl = document.getElementById('message');
     const teamEl = document.getElementById('team');
     const progressEl = document.getElementById('progress');
@@ -1782,37 +1765,6 @@
       return ' | VRin: src ' + d.sources + ' gp ' + d.gamepads + ' std ' + d.stdPads + ' ax ' + d.activeAxes + ' btn ' + d.activeButtons;
     }
 
-    function updateVrStatusTop() {
-      if (!vrStatusTopEl) return;
-      if (!renderer.xr.isPresenting) {
-        vrStatusTopEl.style.display = 'none';
-        vrStatusLabel.sprite.visible = false;
-        return;
-      }
-      vrStatusTopEl.style.display = 'block';
-      const d = vrInput.debug;
-      const moveX = vrInput.moveStrafe.toFixed(2);
-      const moveY = vrInput.moveForward.toFixed(2);
-      const pos = player.x.toFixed(1) + ',' + player.z.toFixed(1);
-      const text = 'VR input | src ' + d.sources + ' gp ' + d.gamepads + ' std ' + d.stdPads + ' ax ' + d.activeAxes + ' btn ' + d.activeButtons + ' | move X ' + moveX + ' Y ' + moveY + ' | pos ' + pos + (vrInput.selectHeld ? ' | SELECT' : '');
-      vrStatusTopEl.textContent = text;
-
-      vrStatusLabel.sprite.visible = true;
-      const ctx = vrStatusLabel.ctx;
-      ctx.clearRect(0, 0, vrStatusLabel.canvas.width, vrStatusLabel.canvas.height);
-      ctx.fillStyle = 'rgba(10,14,22,0.92)';
-      ctx.fillRect(0, 0, vrStatusLabel.canvas.width, vrStatusLabel.canvas.height);
-      ctx.strokeStyle = 'rgba(255,214,122,0.68)';
-      ctx.lineWidth = 4;
-      ctx.strokeRect(2, 2, vrStatusLabel.canvas.width - 4, vrStatusLabel.canvas.height - 4);
-      ctx.fillStyle = '#ffe9c9';
-      ctx.font = '700 42px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(text, vrStatusLabel.canvas.width / 2, vrStatusLabel.canvas.height / 2);
-      vrStatusLabel.texture.needsUpdate = true;
-    }
-
     function updateVrControllers(deltaMs) {
       vrInput.moveForward = 0;
       vrInput.moveStrafe = 0;
@@ -1827,13 +1779,14 @@
       const session = renderer.xr.getSession();
       if (!session) return;
 
-      let moveFromLeft = null;
-      let moveBest = null;
+      let moveInput = null;
+      let fallbackMove = null;
+      let fallbackTurnX = 0;
       let turnBestX = 0;
       let anyTriggerPressed = false;
       let anyDashPressed = false;
       let anyJumpPressed = false;
-      const absorbPad = (gp, handed = 'none') => {
+      const absorbPad = (gp, handed = 'none', role = 'auto') => {
         if (!gp) return;
         const buttons = gp.buttons || [];
         const axes = gp.axes || [];
@@ -1856,9 +1809,12 @@
             break;
           }
         }
-        if (!moveBest || movePower > (Math.abs(moveBest.x) + Math.abs(moveBest.y))) moveBest = moveCandidate;
-        if (handed === 'left') moveFromLeft = moveCandidate;
-        if (handed === 'right' && Math.abs(moveCandidate.x) > Math.abs(turnBestX)) turnBestX = moveCandidate.x;
+        if (!fallbackMove || movePower > (Math.abs(fallbackMove.x) + Math.abs(fallbackMove.y))) fallbackMove = moveCandidate;
+        if (Math.abs(moveCandidate.x) > Math.abs(fallbackTurnX)) fallbackTurnX = moveCandidate.x;
+        if (handed === 'left' || role === 'move') moveInput = moveCandidate;
+        if (handed === 'right' || role === 'turn') {
+          if (Math.abs(moveCandidate.x) > Math.abs(turnBestX)) turnBestX = moveCandidate.x;
+        }
         anyTriggerPressed = anyTriggerPressed || triggerPressed;
         anyDashPressed = anyDashPressed || primaryPressed;
         anyJumpPressed = anyJumpPressed || secondaryPressed || stickPressed || facePressed;
@@ -1873,25 +1829,31 @@
       }
 
       // Quest fallback: some browser paths expose controller input only via Gamepad API.
-      if (!moveBest && navigator.getGamepads) {
-        const pads = navigator.getGamepads();
-        for (const gp of pads) {
+      if (navigator.getGamepads) {
+        const xrPads = [];
+        for (const gp of navigator.getGamepads()) {
           if (!gp || !gp.connected) continue;
           const id = (gp.id || '').toLowerCase();
           const likelyVrPad = id.includes('oculus') || id.includes('openxr') || id.includes('xr') || id.includes('touch');
           if (!likelyVrPad) continue;
+          xrPads.push(gp);
+        }
+        for (let i = 0; i < xrPads.length; i++) {
+          const gp = xrPads[i];
           vrInput.debug.stdPads += 1;
-          absorbPad(gp, 'none');
+          const handed = (gp.hand || '').toLowerCase();
+          const role = handed === 'left' ? 'move' : handed === 'right' ? 'turn' : i === 0 ? 'move' : 'turn';
+          absorbPad(gp, handed || 'none', role);
         }
       }
 
-      const locomotion = moveFromLeft || moveBest || { x: 0, y: 0 };
+      const locomotion = moveInput || fallbackMove || { x: 0, y: 0 };
       // Boost low analog ranges so subtle stick values still result in visible movement.
       vrInput.moveStrafe = Math.max(-1, Math.min(1, locomotion.x * 2.2));
       vrInput.moveForward = Math.max(-1, Math.min(1, locomotion.y * 2.2));
       if (Math.abs(locomotion.y) > 0.88) vrInput.sprint = true;
 
-      if (!moveFromLeft && Math.abs(turnBestX) < 0.001 && moveBest) turnBestX = moveBest.x;
+      if (Math.abs(turnBestX) < 0.001) turnBestX = fallbackTurnX;
       if (Math.abs(turnBestX) > 0.7 && vrInput.snapTurnCooldownMs <= 0) {
         player.yaw -= Math.sign(turnBestX) * 0.45;
         vrInput.snapTurnCooldownMs = 220;
@@ -2410,7 +2372,6 @@
       xrRig.position.set(0, 0, 0);
       if (vrHands.left) vrHands.left.visible = false;
       if (vrHands.right) vrHands.right.visible = false;
-      vrStatusLabel.sprite.visible = false;
       if (game.mode !== 'creator') crosshairEl.style.display = 'block';
       setMessage('VR gestopt. Je bent terug in standaard browser-modus.');
       updateFunHUD();
@@ -3417,7 +3378,6 @@
       }
       if (renderer.xr.isPresenting && game.mode === 'world') syncPlayerFromXR();
       if (renderer.xr.isPresenting) updateVrControllers(deltaMs);
-      updateVrStatusTop();
       movePlayer();
       updateStamina();
       updateAbilities(deltaMs);
