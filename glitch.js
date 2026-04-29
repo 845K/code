@@ -1684,6 +1684,7 @@
         return;
       }
       try {
+        if (game.mode === 'creator') finishCreator();
         const session = await navigator.xr.requestSession('immersive-vr', {
           optionalFeatures: ['local-floor', 'bounded-floor']
         });
@@ -1715,8 +1716,8 @@
           new THREE.CylinderGeometry(0.009, 0.012, 0.07, 8),
           new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4, metalness: 0.2 })
         );
-        pointer.rotation.x = Math.PI / 2;
-        pointer.position.z = -0.045;
+        pointer.rotation.x = -Math.PI / 2;
+        pointer.position.z = 0.045;
         hand.add(palm);
         hand.add(pointer);
         hand.visible = false;
@@ -1749,33 +1750,46 @@
 
       let sawLeft = false;
       let sawRight = false;
+      let fallbackMove = null;
       for (const source of session.inputSources) {
         if (!source || !source.gamepad) continue;
         const gp = source.gamepad;
         const handed = source.handedness || 'none';
         const buttons = gp.buttons || [];
         const axes = gp.axes || [];
-        const axisX = axisWithDeadzone(axes[2] ?? axes[0] ?? 0);
-        const axisY = axisWithDeadzone(axes[3] ?? axes[1] ?? 0);
+        const axisX = axisWithDeadzone(axes[0] ?? axes[2] ?? 0);
+        const axisY = axisWithDeadzone(axes[1] ?? axes[3] ?? 0);
+        const axisAltX = axisWithDeadzone(axes[2] ?? axes[0] ?? 0);
+        const axisAltY = axisWithDeadzone(axes[3] ?? axes[1] ?? 0);
+        const moveCandidate = (
+          Math.abs(axisX) + Math.abs(axisY) >= Math.abs(axisAltX) + Math.abs(axisAltY)
+            ? { x: axisX, y: axisY }
+            : { x: axisAltX, y: axisAltY }
+        );
         const triggerPressed = !!buttons[0]?.pressed;
         const primaryPressed = !!buttons[4]?.pressed;
+        const secondaryPressed = !!buttons[5]?.pressed;
         const stickPressed = !!buttons[3]?.pressed;
+        if (!fallbackMove || (Math.abs(moveCandidate.x) + Math.abs(moveCandidate.y)) > (Math.abs(fallbackMove.x) + Math.abs(fallbackMove.y))) {
+          fallbackMove = moveCandidate;
+        }
 
         if (handed === 'left') {
           sawLeft = true;
-          vrInput.moveStrafe = axisX;
-          vrInput.moveForward = axisY;
-          vrInput.sprint = !!buttons[1]?.pressed || Math.abs(axisY) > 0.88;
+          vrInput.moveStrafe = moveCandidate.x;
+          vrInput.moveForward = moveCandidate.y;
+          vrInput.sprint = !!buttons[1]?.pressed || Math.abs(moveCandidate.y) > 0.88;
 
-          if (primaryPressed && !vrInput.prevButtons.leftPrimary) jumpPlayer();
-          vrInput.prevButtons.leftPrimary = primaryPressed;
+          const wantsJump = primaryPressed || secondaryPressed || stickPressed;
+          if (wantsJump && !vrInput.prevButtons.leftPrimary) jumpPlayer();
+          vrInput.prevButtons.leftPrimary = wantsJump;
 
           if (triggerPressed && !vrInput.prevButtons.leftTrigger) interact();
           vrInput.prevButtons.leftTrigger = triggerPressed;
         } else if (handed === 'right') {
           sawRight = true;
-          if (Math.abs(axisX) > 0.7 && vrInput.snapTurnCooldownMs <= 0) {
-            player.yaw -= Math.sign(axisX) * 0.45;
+          if (Math.abs(moveCandidate.x) > 0.7 && vrInput.snapTurnCooldownMs <= 0) {
+            player.yaw -= Math.sign(moveCandidate.x) * 0.45;
             vrInput.snapTurnCooldownMs = 220;
           }
 
@@ -1792,12 +1806,10 @@
 
       // Some browsers/controllers report handedness as "none"; fallback to left-stick locomotion.
       if (!sawLeft) {
-        for (const source of session.inputSources) {
-          if (!source || !source.gamepad) continue;
-          const axes = source.gamepad.axes || [];
-          vrInput.moveStrafe = axisWithDeadzone(axes[2] ?? axes[0] ?? 0);
-          vrInput.moveForward = axisWithDeadzone(axes[3] ?? axes[1] ?? 0);
-          break;
+        if (fallbackMove) {
+          vrInput.moveStrafe = fallbackMove.x;
+          vrInput.moveForward = fallbackMove.y;
+          vrInput.sprint = Math.abs(fallbackMove.y) > 0.88;
         }
       }
     }
