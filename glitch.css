@@ -1,0 +1,437 @@
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #121a27;
+      font-family: "Franklin Gothic Medium", "Arial Narrow", "Trebuchet MS", sans-serif;
+      color: white;
+    }
+    #crosshair {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      width: 18px;
+      height: 18px;
+      transform: translate(-50%, -50%);
+      border: 2px solid rgba(255, 99, 132, 0.92);
+      border-radius: 50%;
+      box-shadow: 0 0 18px rgba(255, 99, 132, 0.42), inset 0 0 12px rgba(255,255,255,0.14);
+      z-index: 12;
+      pointer-events: none;
+    }
+    #hint {
+      position: fixed;
+      left: 50%;
+      top: calc(50% + 24px);
+      transform: translateX(-50%);
+      z-index: 15;
+      display: none;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.65);
+      border: 1px solid rgba(255,255,255,0.12);
+      font-size: 13px;
+    }
+    #vignette {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at center, transparent 30%, rgba(6,10,20,0.16) 56%, rgba(0,0,0,0.6) 100%),
+        linear-gradient(180deg, rgba(255, 72, 105, 0.1), transparent 22%, transparent 68%, rgba(255, 205, 76, 0.09));
+      mix-blend-mode: normal;
+    }
+    #areaBanner {
+      position: fixed;
+      left: 50%;
+      top: 24px;
+      transform: translateX(-50%) translateY(-14px);
+      z-index: 22;
+      opacity: 0;
+      padding: 10px 18px;
+      border-radius: 999px;
+      background: rgba(14, 20, 30, 0.84);
+      border: 1px solid rgba(255, 110, 136, 0.3);
+      box-shadow: 0 14px 30px rgba(0,0,0,0.35);
+      color: #ffe9c9;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      transition: opacity 0.35s ease, transform 0.35s ease;
+      pointer-events: none;
+      backdrop-filter: blur(12px);
+    }
+    #areaBanner.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    #creatorUI {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background:
+        radial-gradient(circle at top, rgba(255, 84, 112, 0.22), transparent 42%),
+        radial-gradient(circle at bottom, rgba(255, 203, 88, 0.16), transparent 38%),
+        rgba(9, 12, 18, 0.86);
+      backdrop-filter: blur(12px);
+    }
+    #creatorCard {
+      width: min(760px, calc(100vw - 28px));
+      background:
+        linear-gradient(180deg, rgba(22, 28, 40, 0.96), rgba(15, 20, 28, 0.96)),
+        repeating-linear-gradient(135deg, rgba(255,255,255,0.025) 0 8px, transparent 8px 16px);
+      border: 1px solid rgba(255, 215, 116, 0.24);
+      border-radius: 24px;
+      padding: 22px;
+      box-shadow: 0 26px 60px rgba(0,0,0,0.48);
+    }
+    #creatorTitle {
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    #creatorSub {
+      color: #e4d9c9;
+      font-size: 14px;
+      line-height: 1.5;
+      margin-bottom: 18px;
+      max-width: 62ch;
+    }
+    .creatorGrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .creatorField {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 13px;
+      color: #f5eede;
+    }
+    .creatorField span {
+      color: #e8d7bc;
+      font-weight: 700;
+    }
+    .creatorField input,
+    .creatorField select {
+      border: 1px solid rgba(255, 214, 126, 0.24);
+      border-radius: 12px;
+      background: rgba(20, 26, 36, 0.84);
+      color: white;
+      padding: 12px 14px;
+      font-size: 14px;
+      outline: none;
+    }
+    .creatorField input:focus,
+    .creatorField select:focus {
+      border-color: rgba(255, 132, 153, 0.85);
+      box-shadow: 0 0 0 3px rgba(255, 132, 153, 0.14);
+    }
+    .creatorControls {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 18px;
+      margin-bottom: 12px;
+    }
+    #creatorStart {
+      width: 100%;
+      padding: 14px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #ff5473, #ffce52);
+    }
+    #ui {
+      position: fixed;
+      top: 14px;
+      left: 14px;
+      width: 380px;
+      max-width: calc(100vw - 28px);
+      z-index: 20;
+      background:
+        linear-gradient(180deg, rgba(18,24,35,0.94), rgba(14,18,26,0.92)),
+        repeating-linear-gradient(135deg, rgba(255,255,255,0.018) 0 7px, transparent 7px 14px);
+      border: 1px solid rgba(255, 214, 122, 0.18);
+      border-radius: 22px;
+      padding: 16px;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 18px 50px rgba(0,0,0,0.45);
+    }
+    #title {
+      font-size: 35px;
+      font-weight: 900;
+      margin-bottom: 8px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #fff1d8;
+      text-shadow: 0 0 22px rgba(255, 104, 128, 0.24);
+    }
+    #sub {
+      color: #ffc77f;
+      font-size: 12px;
+      line-height: 1.4;
+      margin-bottom: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+    }
+    .panel {
+      margin-top: 10px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.018)),
+        linear-gradient(90deg, rgba(255, 197, 76, 0.08), rgba(255, 197, 76, 0.08)) left top / 100% 2px no-repeat,
+        linear-gradient(135deg, rgba(255, 84, 112, 0.05), rgba(90, 136, 255, 0.04));
+      border: 1px solid rgba(255, 214, 122, 0.14);
+      border-radius: 14px;
+      padding: 11px 12px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.18);
+    }
+    .small { font-size: 12px; color: #ded6c8; line-height: 1.45; }
+    #message { min-height: 58px; line-height: 1.45; font-size: 14px; }
+    #team, #progress, #objective, #stats, #donuts, #status { font-size: 14px; line-height: 1.5; }
+    #donuts { color: #ffd166; }
+    #status { color: #ff9cb0; }
+    #objective { color: #ffc57c; font-weight: 700; }
+    #stats { color: #8bbdff; font-weight: 700; }
+    #vrButton {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 13px;
+      letter-spacing: 0.02em;
+    }
+    #dialog {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 16px;
+      width: min(900px, calc(100vw - 24px));
+      z-index: 25;
+      display: none;
+      background: rgba(16,20,29,0.96);
+      border: 1px solid rgba(255, 214, 122, 0.16);
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: 0 18px 45px rgba(0,0,0,0.45);
+    }
+    #dialogName { font-weight: 700; margin-bottom: 8px; color: #fff; }
+    #dialogText { line-height: 1.5; color: #ececf5; min-height: 48px; }
+    #catchUI {
+      position: fixed;
+      inset: 0;
+      z-index: 28;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(8, 10, 16, 0.74);
+      backdrop-filter: blur(8px);
+    }
+    #catchCard {
+      width: min(480px, calc(100vw - 28px));
+      background: rgba(15,20,28,0.95);
+      border: 1px solid rgba(255, 214, 122, 0.16);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+      text-align: center;
+    }
+    #catchTitle {
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      color: #ffcc74;
+    }
+    #catchArena {
+      position: relative;
+      height: 260px;
+      border-radius: 18px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at center, rgba(255,255,255,0.08), rgba(0,0,0,0.2) 35%, rgba(0,0,0,0.45) 70%),
+        linear-gradient(180deg, rgba(255, 74, 106, 0.24), rgba(43, 88, 184, 0.16));
+      border: 1px solid rgba(255, 214, 122, 0.14);
+      margin-bottom: 12px;
+    }
+    #catchTarget, #catchRing {
+      position: absolute;
+      left: 50%;
+      top: 42%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    #catchTarget {
+      width: 92px;
+      height: 92px;
+      border: 3px solid rgba(255,255,255,0.9);
+      box-shadow: 0 0 24px rgba(255,255,255,0.18);
+    }
+    #catchRing {
+      width: 150px;
+      height: 150px;
+      border: 5px solid #ffbe59;
+      box-shadow: 0 0 28px rgba(255,209,102,0.25);
+    }
+    #catchBall {
+      position: absolute;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%);
+      font-size: 42px;
+      color: #ff8fa7;
+      text-shadow: 0 0 16px rgba(255, 143, 167, 0.56);
+      transition: left 0.34s ease, bottom 0.34s ease, transform 0.34s ease, opacity 0.2s ease;
+    }
+    #catchText {
+      min-height: 24px;
+      color: #ececf5;
+      line-height: 1.4;
+      font-size: 14px;
+    }
+    #battleUI {
+      position: fixed;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%);
+      width: min(900px, calc(100vw - 24px));
+      z-index: 30;
+      display: none;
+      background: rgba(16,20,30,0.96);
+      border: 1px solid rgba(255, 214, 122, 0.16);
+      border-radius: 18px;
+      padding: 14px;
+      box-shadow: 0 16px 45px rgba(0,0,0,0.45);
+    }
+    #battleTop {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .fighter {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 14px;
+      padding: 10px;
+    }
+    .fighter h3 { margin: 0 0 6px 0; font-size: 18px; }
+    .bar { height: 12px; border-radius: 999px; background: rgba(255,255,255,0.1); overflow: hidden; margin-top: 6px; }
+    .fill { height: 100%; background: white; width: 100%; transition: width 0.25s ease; }
+    #battleLog {
+      min-height: 56px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 10px;
+      margin-bottom: 12px;
+      line-height: 1.45;
+    }
+    #moves {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    #reserveButtons {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+    button {
+      background: linear-gradient(135deg, #ff5473, #ffce52);
+      color: #201812;
+      border: none;
+      border-radius: 12px;
+      padding: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+      box-shadow: 0 10px 24px rgba(255, 113, 136, 0.24);
+    }
+    button:hover { opacity: 0.93; }
+    button:disabled { opacity: 0.4; cursor: default; }
+    .ghostBtn {
+      background: linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.05));
+      color: white;
+      border: 1px solid rgba(255, 214, 122, 0.24);
+    }
+    #devToggle {
+      position: fixed;
+      right: 14px;
+      top: 14px;
+      z-index: 35;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border-radius: 12px;
+      background: #f8ff7a;
+      color: #111;
+    }
+    #devPanel {
+      position: fixed;
+      right: 14px;
+      top: 68px;
+      width: 330px;
+      max-width: calc(100vw - 28px);
+      max-height: calc(100vh - 84px);
+      overflow: auto;
+      z-index: 34;
+      display: none;
+      background: rgba(9,9,16,0.94);
+      border: 1px solid rgba(248,255,122,0.38);
+      border-radius: 14px;
+      padding: 12px;
+      box-shadow: 0 18px 45px rgba(0,0,0,0.5);
+      backdrop-filter: blur(10px);
+    }
+    #devPanel.open { display: block; }
+    .devTitle {
+      font-weight: 800;
+      margin-bottom: 8px;
+      color: #f8ff7a;
+    }
+    .devSection {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+    .devSection h3 {
+      margin: 0 0 8px 0;
+      font-size: 13px;
+      color: #e7e7f2;
+    }
+    .devCheck {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 7px 0;
+      font-size: 13px;
+      color: #efeff7;
+    }
+    .devCheck input { width: 16px; height: 16px; }
+    .devGrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .devGrid button, .devWide {
+      padding: 9px;
+      border-radius: 10px;
+      font-size: 12px;
+    }
+    .devWide {
+      width: 100%;
+      margin-top: 8px;
+    }
+    @media (max-width: 760px) {
+      .creatorGrid { grid-template-columns: 1fr; }
+      .creatorControls { grid-template-columns: 1fr 1fr; }
+      #battleTop { grid-template-columns: 1fr; }
+      #moves, #reserveButtons { grid-template-columns: 1fr; }
+      #ui { width: auto; right: 14px; }
+      #devPanel { left: 14px; width: auto; }
+    }

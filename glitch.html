@@ -1,0 +1,197 @@
+﻿<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Glitch Hunt 3D Extended v3.3</title>
+  <link rel="stylesheet" href="./glitch.css" />
+</head>
+<body>
+  <div id="crosshair"></div>
+  <div id="hint"></div>
+  <div id="vignette"></div>
+  <div id="areaBanner"></div>
+
+  <div id="creatorUI">
+    <div id="creatorCard">
+      <div id="creatorTitle">Maak Je Personage</div>
+      <div id="creatorSub">Kies hoe jij eruitziet voordat je de glitch-wereld in stapt. Gebruik de knoppen om in en uit te zoomen terwijl je preview draait.</div>
+
+      <div class="creatorGrid">
+        <label class="creatorField">
+          <span>Naam</span>
+          <input id="creatorName" type="text" maxlength="18" value="Glitch Runner" />
+        </label>
+        <label class="creatorField">
+          <span>Huid</span>
+          <select id="creatorSkin">
+            <option value="light">Licht</option>
+            <option value="warm">Warm</option>
+            <option value="tan">Tan</option>
+            <option value="deep">Donker</option>
+          </select>
+        </label>
+        <label class="creatorField">
+          <span>Outfit</span>
+          <select id="creatorOutfit">
+            <option value="violet">Paars</option>
+            <option value="cyan">Cyaan</option>
+            <option value="crimson">Rood</option>
+            <option value="gold">Goud</option>
+            <option value="midnight">Nacht</option>
+          </select>
+        </label>
+        <label class="creatorField">
+          <span>Haarstijl</span>
+          <select id="creatorHairStyle">
+            <option value="short">Kort</option>
+            <option value="spikes">Spikes</option>
+            <option value="tall">Hoog</option>
+            <option value="bob">Wild</option>
+            <option value="none">Kaal</option>
+          </select>
+        </label>
+        <label class="creatorField">
+          <span>Haarkleur</span>
+          <select id="creatorHairColor">
+            <option value="black">Zwart</option>
+            <option value="brown">Bruin</option>
+            <option value="blue">Blauw</option>
+            <option value="pink">Roze</option>
+            <option value="green">Groen</option>
+            <option value="white">Wit</option>
+          </select>
+        </label>
+        <label class="creatorField">
+          <span>Extra</span>
+          <select id="creatorExtra">
+            <option value="none">Geen</option>
+            <option value="wings">Vleugels</option>
+            <option value="bow">Strik</option>
+            <option value="hat">Pet</option>
+            <option value="nose">Clownneus</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="creatorControls">
+        <button class="ghostBtn" id="creatorRotateLeft" type="button">Draai links</button>
+        <button class="ghostBtn" id="creatorRotateRight" type="button">Draai rechts</button>
+        <button class="ghostBtn" id="creatorZoomOut" type="button">Zoom uit</button>
+        <button class="ghostBtn" id="creatorZoomIn" type="button">Zoom in</button>
+      </div>
+
+      <button id="creatorStart" type="button">Start avontuur</button>
+    </div>
+  </div>
+
+  <div id="ui">
+    <div id="title">Glitch Hunt 3D <span id="version">v3.3</span></div>
+    <div id="sub">Playcare update: grimmige toy-factory sfeer, hazard-details, flickerende lampen en een donkerdere facility look.</div>
+
+    <div class="panel"><button id="vrButton" class="ghostBtn" type="button">VR checken...</button></div>
+    <div class="panel"><div id="message">Klik in het scherm. Beweeg met W A S D. Kijk met de muis. Druk op E om te praten, vangen of vechten.</div></div>
+    <div class="panel"><div id="team">Team: nog leeg</div></div>
+    <div class="panel"><div id="progress">Voortgang: Startgebied</div></div>
+    <div class="panel"><div id="objective">Objective: praat met Signal</div></div>
+    <div class="panel"><div id="stats">Level 1 | XP 0 / 60 | Shards 0 | Dash klaar</div></div>
+    <div class="panel"><div id="donuts">Donuts: 0 / 0</div></div>
+    <div class="panel"><div id="status">Stamina: klaar | Radar: zoekt...</div></div>
+    <div class="panel small">Doel: praat met units, gooi daarna een glitch-orb om ze te vangen, versla uitdagers, verzamel donuts en open uiteindelijk de Hel.</div>
+  </div>
+
+  <button id="devToggle" title="Development cheats">DEV</button>
+  <div id="devPanel">
+    <div class="devTitle">Development Cheats</div>
+    <div class="small">Klik toggles om later in de game te testen. Sneltoets: `.</div>
+
+    <div class="devSection">
+      <h3>Team</h3>
+      <label class="devCheck"><input type="checkbox" id="devTeamUzi"> Uzi in team</label>
+      <label class="devCheck"><input type="checkbox" id="devTeamCyn"> Cyn in team</label>
+      <label class="devCheck"><input type="checkbox" id="devTeamV"> V in team</label>
+      <label class="devCheck"><input type="checkbox" id="devTeamPomni"> Pomni in team</label>
+    </div>
+
+    <div class="devSection">
+      <h3>Verslagen</h3>
+      <label class="devCheck"><input type="checkbox" id="devDefeatedWorker"> Worker Drone</label>
+      <label class="devCheck"><input type="checkbox" id="devDefeatedJ"> J</label>
+      <label class="devCheck"><input type="checkbox" id="devDefeatedSentinel"> Sentinel</label>
+      <label class="devCheck"><input type="checkbox" id="devDefeatedN"> N</label>
+    </div>
+
+    <div class="devSection">
+      <h3>God Mode</h3>
+      <label class="devCheck"><input type="checkbox" id="devGodMode"> Vijanden doen geen schade</label>
+      <label class="devCheck"><input type="checkbox" id="devNoClip"> Door muren lopen</label>
+      <label class="devCheck"><input type="checkbox" id="devFast"> Sneller lopen</label>
+      <button class="devWide ghostBtn" id="devHeal">Team volledig healen</button>
+      <button class="devWide ghostBtn" id="devWinBattle">Win huidig gevecht</button>
+    </div>
+
+    <div class="devSection">
+      <h3>Teleport</h3>
+      <div class="devGrid">
+        <button class="ghostBtn" data-teleport="start">Start</button>
+        <button class="ghostBtn" data-teleport="uzi">Uzi</button>
+        <button class="ghostBtn" data-teleport="cyn">Cyn</button>
+        <button class="ghostBtn" data-teleport="v">V</button>
+        <button class="ghostBtn" data-teleport="j">J</button>
+        <button class="ghostBtn" data-teleport="sentinel">Sentinel</button>
+        <button class="ghostBtn" data-teleport="n">N</button>
+        <button class="ghostBtn" data-teleport="circus">Circus</button>
+        <button class="ghostBtn" data-teleport="hell">Hel</button>
+      </div>
+    </div>
+
+    <div class="devSection">
+      <button class="devWide" id="devUnlockAll">Unlock alles</button>
+      <button class="devWide ghostBtn" id="devReset">Reset progress</button>
+    </div>
+  </div>
+
+  <div id="dialog">
+    <div id="dialogName">Naam</div>
+    <div id="dialogText">Tekst</div>
+  </div>
+
+  <div id="catchUI">
+    <div id="catchCard">
+      <div id="catchTitle">Vangen</div>
+      <div id="catchArena">
+        <div id="catchTarget"></div>
+        <div id="catchRing"></div>
+        <div id="catchBall">◎</div>
+      </div>
+      <div id="catchText">Klik of druk op spatie om een glitch-orb te gooien.</div>
+    </div>
+  </div>
+
+  <div id="battleUI">
+    <div id="battleTop">
+      <div class="fighter">
+        <h3 id="playerName">Player</h3>
+        <div id="playerStats"></div>
+        <div class="bar"><div class="fill" id="playerHpBar"></div></div>
+      </div>
+      <div class="fighter">
+        <h3 id="enemyName">Enemy</h3>
+        <div id="enemyStats"></div>
+        <div class="bar"><div class="fill" id="enemyHpBar"></div></div>
+      </div>
+    </div>
+    <div id="battleLog">Battle start.</div>
+    <div id="moves">
+      <button id="move1"></button>
+      <button id="move2"></button>
+      <button id="move3"></button>
+    </div>
+    <div id="reserveButtons"></div>
+  </div>
+
+  <script src="./vendor/three.min.js"></script>
+  <script src="./glitch.js"></script>
+</body>
+</html>
+
