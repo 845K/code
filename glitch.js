@@ -1,4 +1,4 @@
-    const GAME_VERSION = 'v3.5';
+    const GAME_VERSION = 'v3.6';
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x121a27);
@@ -1379,6 +1379,7 @@
 
     const crosshairEl = document.getElementById('crosshair');
     const versionEl = document.getElementById('version');
+    const vrStatusTopEl = document.getElementById('vrStatusTop');
     const messageEl = document.getElementById('message');
     const teamEl = document.getElementById('team');
     const progressEl = document.getElementById('progress');
@@ -1749,6 +1750,19 @@
       if (!renderer.xr.isPresenting) return '';
       const d = vrInput.debug;
       return ' | VRin: src ' + d.sources + ' gp ' + d.gamepads + ' ax ' + d.activeAxes + ' btn ' + d.activeButtons;
+    }
+
+    function updateVrStatusTop() {
+      if (!vrStatusTopEl) return;
+      if (!renderer.xr.isPresenting) {
+        vrStatusTopEl.style.display = 'none';
+        return;
+      }
+      vrStatusTopEl.style.display = 'block';
+      const d = vrInput.debug;
+      const moveX = vrInput.moveStrafe.toFixed(2);
+      const moveY = vrInput.moveForward.toFixed(2);
+      vrStatusTopEl.textContent = 'VR input | src ' + d.sources + ' gp ' + d.gamepads + ' ax ' + d.activeAxes + ' btn ' + d.activeButtons + ' | move X ' + moveX + ' Y ' + moveY;
     }
 
     function updateVrControllers(deltaMs) {
@@ -3321,6 +3335,7 @@
       }
       if (renderer.xr.isPresenting && game.mode === 'world') syncPlayerFromXR();
       if (renderer.xr.isPresenting) updateVrControllers(deltaMs);
+      updateVrStatusTop();
       movePlayer();
       updateStamina();
       updateAbilities(deltaMs);

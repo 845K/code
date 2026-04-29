@@ -67,6 +67,28 @@
       opacity: 1;
       transform: translateX(-50%) translateY(0);
     }
+    #vrStatusTop {
+      position: fixed;
+      left: 50%;
+      top: 10px;
+      transform: translateX(-50%);
+      z-index: 26;
+      min-width: 320px;
+      max-width: min(92vw, 980px);
+      padding: 10px 16px;
+      border-radius: 999px;
+      background: rgba(10, 14, 22, 0.9);
+      border: 1px solid rgba(255, 214, 122, 0.32);
+      color: #ffe9c9;
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      text-align: center;
+      box-shadow: 0 12px 28px rgba(0,0,0,0.42);
+      backdrop-filter: blur(8px);
+      display: none;
+      pointer-events: none;
+    }
     #creatorUI {
       position: fixed;
       inset: 0;
@@ -428,6 +450,11 @@
       margin-top: 8px;
     }
     @media (max-width: 760px) {
+      #vrStatusTop {
+        top: 8px;
+        font-size: 16px;
+        padding: 8px 12px;
+      }
       .creatorGrid { grid-template-columns: 1fr; }
       .creatorControls { grid-template-columns: 1fr 1fr; }
       #battleTop { grid-template-columns: 1fr; }
