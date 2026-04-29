@@ -1,4 +1,4 @@
-    const GAME_VERSION = 'v3.9';
+    const GAME_VERSION = 'v4.0';
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x121a27);
@@ -1727,7 +1727,8 @@
       xrCam.getWorldDirection(dir);
       player.yaw = Math.atan2(-dir.x, -dir.z);
       player.pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
-      player.y = Math.max(PLAYER_EYE_HEIGHT * 0.5, xrCam.position.y);
+      // Some runtimes report y near 0 in immersive sessions; keep gameplay eye height stable.
+      player.y = Math.max(PLAYER_EYE_HEIGHT, xrCam.position.y || 0);
     }
 
     function setupVrHands() {
