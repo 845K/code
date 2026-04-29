@@ -1,4 +1,4 @@
-    const GAME_VERSION = 'v3.6';
+    const GAME_VERSION = 'v3.7';
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x121a27);
@@ -1369,7 +1369,7 @@
       sprint: false,
       prevButtons: { anyTrigger: false, anyDash: false, anyJump: false },
       snapTurnCooldownMs: 0,
-      debug: { sources: 0, gamepads: 0, activeAxes: 0, activeButtons: 0 }
+      debug: { sources: 0, gamepads: 0, stdPads: 0, activeAxes: 0, activeButtons: 0 }
     };
     const vrHands = { left: null, right: null };
     let playerAvatar = null;
@@ -1749,7 +1749,7 @@
     function getVrDebugSuffix() {
       if (!renderer.xr.isPresenting) return '';
       const d = vrInput.debug;
-      return ' | VRin: src ' + d.sources + ' gp ' + d.gamepads + ' ax ' + d.activeAxes + ' btn ' + d.activeButtons;
+      return ' | VRin: src ' + d.sources + ' gp ' + d.gamepads + ' std ' + d.stdPads + ' ax ' + d.activeAxes + ' btn ' + d.activeButtons;
     }
 
     function updateVrStatusTop() {
@@ -1762,7 +1762,7 @@
       const d = vrInput.debug;
       const moveX = vrInput.moveStrafe.toFixed(2);
       const moveY = vrInput.moveForward.toFixed(2);
-      vrStatusTopEl.textContent = 'VR input | src ' + d.sources + ' gp ' + d.gamepads + ' ax ' + d.activeAxes + ' btn ' + d.activeButtons + ' | move X ' + moveX + ' Y ' + moveY;
+      vrStatusTopEl.textContent = 'VR input | src ' + d.sources + ' gp ' + d.gamepads + ' std ' + d.stdPads + ' ax ' + d.activeAxes + ' btn ' + d.activeButtons + ' | move X ' + moveX + ' Y ' + moveY;
     }
 
     function updateVrControllers(deltaMs) {
@@ -1772,6 +1772,7 @@
       vrInput.snapTurnCooldownMs = Math.max(0, vrInput.snapTurnCooldownMs - deltaMs);
       vrInput.debug.sources = 0;
       vrInput.debug.gamepads = 0;
+      vrInput.debug.stdPads = 0;
       vrInput.debug.activeAxes = 0;
       vrInput.debug.activeButtons = 0;
 
@@ -1784,13 +1785,8 @@
       let anyTriggerPressed = false;
       let anyDashPressed = false;
       let anyJumpPressed = false;
-      for (const source of session.inputSources) {
-        if (!source) continue;
-        vrInput.debug.sources += 1;
-        if (!source.gamepad) continue;
-        vrInput.debug.gamepads += 1;
-        const gp = source.gamepad;
-        const handed = source.handedness || 'none';
+      const absorbPad = (gp, handed = 'none') => {
+        if (!gp) return;
         const buttons = gp.buttons || [];
         const axes = gp.axes || [];
         const axisX = axisWithDeadzone(axes[0] ?? axes[2] ?? 0);
@@ -1823,6 +1819,26 @@
         anyDashPressed = anyDashPressed || primaryPressed;
         anyJumpPressed = anyJumpPressed || secondaryPressed || stickPressed || facePressed;
         vrInput.sprint = vrInput.sprint || sprintPressed;
+      };
+      for (const source of session.inputSources) {
+        if (!source) continue;
+        vrInput.debug.sources += 1;
+        if (!source.gamepad) continue;
+        vrInput.debug.gamepads += 1;
+        absorbPad(source.gamepad, source.handedness || 'none');
+      }
+
+      // Quest fallback: some browser paths expose controller input only via Gamepad API.
+      if (!moveBest && navigator.getGamepads) {
+        const pads = navigator.getGamepads();
+        for (const gp of pads) {
+          if (!gp || !gp.connected) continue;
+          const id = (gp.id || '').toLowerCase();
+          const likelyVrPad = id.includes('oculus') || id.includes('openxr') || id.includes('xr') || id.includes('touch');
+          if (!likelyVrPad) continue;
+          vrInput.debug.stdPads += 1;
+          absorbPad(gp, 'none');
+        }
       }
 
       const locomotion = moveFromLeft || moveBest || { x: 0, y: 0 };
