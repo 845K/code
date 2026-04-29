@@ -1,4 +1,4 @@
-    const GAME_VERSION = 'v4.0';
+    const GAME_VERSION = 'v4.1';
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x121a27);
@@ -1390,6 +1390,7 @@
       debug: { sources: 0, gamepads: 0, stdPads: 0, activeAxes: 0, activeButtons: 0 }
     };
     const vrHands = { left: null, right: null };
+    const xrWorldOffset = { enabled: false };
     let playerAvatar = null;
     const keys = {};
     const mouseMove = { forward: false, backward: false };
@@ -2367,6 +2368,7 @@
     renderer.xr.addEventListener('sessionstart', () => {
       vrState.active = true;
       vrInput.selectHeld = false;
+      xrWorldOffset.enabled = true;
       cameraState.thirdPerson = false;
       document.exitPointerLock();
       mouseMove.forward = false;
@@ -2394,6 +2396,8 @@
     renderer.xr.addEventListener('sessionend', () => {
       vrState.active = false;
       vrInput.selectHeld = false;
+      xrWorldOffset.enabled = false;
+      scene.position.set(0, 0, 0);
       if (vrHands.left) vrHands.left.visible = false;
       if (vrHands.right) vrHands.right.visible = false;
       vrStatusLabel.sprite.visible = false;
@@ -3403,6 +3407,13 @@
       }
       if (renderer.xr.isPresenting && game.mode === 'world') syncPlayerFromXR();
       if (renderer.xr.isPresenting) updateVrControllers(deltaMs);
+      if (renderer.xr.isPresenting && xrWorldOffset.enabled) {
+        scene.position.x = -player.x;
+        scene.position.z = -player.z;
+      } else if (scene.position.x !== 0 || scene.position.z !== 0) {
+        scene.position.x = 0;
+        scene.position.z = 0;
+      }
       updateVrStatusTop();
       movePlayer();
       updateStamina();
