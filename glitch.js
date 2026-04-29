@@ -1,10 +1,13 @@
-    const GAME_VERSION = 'v4.1';
+    const GAME_VERSION = 'v4.2';
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x121a27);
     scene.fog = new THREE.Fog(0x121a27, 22, 118);
 
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 300);
+    const xrRig = new THREE.Group();
+    scene.add(xrRig);
+    xrRig.add(camera);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -23,7 +26,6 @@
       sprite.position.set(0, -0.12, -1.1);
       sprite.visible = false;
       camera.add(sprite);
-      scene.add(camera);
       return { sprite, canvas, ctx, texture };
     }
     const vrStatusLabel = makeVrStatusLabel();
@@ -1390,7 +1392,6 @@
       debug: { sources: 0, gamepads: 0, stdPads: 0, activeAxes: 0, activeButtons: 0 }
     };
     const vrHands = { left: null, right: null };
-    const xrWorldOffset = { enabled: false };
     let playerAvatar = null;
     const keys = {};
     const mouseMove = { forward: false, backward: false };
@@ -1728,8 +1729,17 @@
       xrCam.getWorldDirection(dir);
       player.yaw = Math.atan2(-dir.x, -dir.z);
       player.pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
-      // Some runtimes report y near 0 in immersive sessions; keep gameplay eye height stable.
-      player.y = Math.max(PLAYER_EYE_HEIGHT, xrCam.position.y || 0);
+      if (!Number.isFinite(player.y) || player.y < PLAYER_EYE_HEIGHT) player.y = PLAYER_EYE_HEIGHT;
+    }
+
+    function updateXrRigPosition() {
+      if (!renderer.xr.isPresenting) {
+        if (xrRig.position.x !== 0 || xrRig.position.y !== 0 || xrRig.position.z !== 0) {
+          xrRig.position.set(0, 0, 0);
+        }
+        return;
+      }
+      xrRig.position.set(player.x, player.y - PLAYER_EYE_HEIGHT, player.z);
     }
 
     function setupVrHands() {
@@ -1757,8 +1767,8 @@
       vrHands.right = makeHand(0xff8fb1);
       leftController.add(vrHands.left);
       rightController.add(vrHands.right);
-      scene.add(leftController);
-      scene.add(rightController);
+      xrRig.add(leftController);
+      xrRig.add(rightController);
     }
 
     function axisWithDeadzone(value, deadzone = 0.08) {
@@ -1783,7 +1793,8 @@
       const d = vrInput.debug;
       const moveX = vrInput.moveStrafe.toFixed(2);
       const moveY = vrInput.moveForward.toFixed(2);
-      const text = 'VR input | src ' + d.sources + ' gp ' + d.gamepads + ' std ' + d.stdPads + ' ax ' + d.activeAxes + ' btn ' + d.activeButtons + ' | move X ' + moveX + ' Y ' + moveY + (vrInput.selectHeld ? ' | SELECT' : '');
+      const pos = player.x.toFixed(1) + ',' + player.z.toFixed(1);
+      const text = 'VR input | src ' + d.sources + ' gp ' + d.gamepads + ' std ' + d.stdPads + ' ax ' + d.activeAxes + ' btn ' + d.activeButtons + ' | move X ' + moveX + ' Y ' + moveY + ' | pos ' + pos + (vrInput.selectHeld ? ' | SELECT' : '');
       vrStatusTopEl.textContent = text;
 
       vrStatusLabel.sprite.visible = true;
@@ -2368,7 +2379,7 @@
     renderer.xr.addEventListener('sessionstart', () => {
       vrState.active = true;
       vrInput.selectHeld = false;
-      xrWorldOffset.enabled = true;
+      updateXrRigPosition();
       cameraState.thirdPerson = false;
       document.exitPointerLock();
       mouseMove.forward = false;
@@ -2396,8 +2407,7 @@
     renderer.xr.addEventListener('sessionend', () => {
       vrState.active = false;
       vrInput.selectHeld = false;
-      xrWorldOffset.enabled = false;
-      scene.position.set(0, 0, 0);
+      xrRig.position.set(0, 0, 0);
       if (vrHands.left) vrHands.left.visible = false;
       if (vrHands.right) vrHands.right.visible = false;
       vrStatusLabel.sprite.visible = false;
@@ -3407,18 +3417,12 @@
       }
       if (renderer.xr.isPresenting && game.mode === 'world') syncPlayerFromXR();
       if (renderer.xr.isPresenting) updateVrControllers(deltaMs);
-      if (renderer.xr.isPresenting && xrWorldOffset.enabled) {
-        scene.position.x = -player.x;
-        scene.position.z = -player.z;
-      } else if (scene.position.x !== 0 || scene.position.z !== 0) {
-        scene.position.x = 0;
-        scene.position.z = 0;
-      }
       updateVrStatusTop();
       movePlayer();
       updateStamina();
       updateAbilities(deltaMs);
       updateGravity();
+      updateXrRigPosition();
       updateCamera();
       updateHint();
       updateAreaBanner(time);
