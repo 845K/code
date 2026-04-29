@@ -1,4 +1,4 @@
-    const GAME_VERSION = 'v3.8';
+    const GAME_VERSION = 'v3.9';
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x121a27);
@@ -1759,7 +1759,7 @@
       scene.add(rightController);
     }
 
-    function axisWithDeadzone(value, deadzone = 0.2) {
+    function axisWithDeadzone(value, deadzone = 0.08) {
       if (Math.abs(value) < deadzone) return 0;
       return value;
     }
@@ -1824,15 +1824,11 @@
         if (!gp) return;
         const buttons = gp.buttons || [];
         const axes = gp.axes || [];
-        const axisX = axisWithDeadzone(axes[0] ?? axes[2] ?? 0);
-        const axisY = axisWithDeadzone(axes[1] ?? axes[3] ?? 0);
-        const axisAltX = axisWithDeadzone(axes[2] ?? axes[0] ?? 0);
-        const axisAltY = axisWithDeadzone(axes[3] ?? axes[1] ?? 0);
-        const moveCandidate = (
-          Math.abs(axisX) + Math.abs(axisY) >= Math.abs(axisAltX) + Math.abs(axisAltY)
-            ? { x: axisX, y: axisY }
-            : { x: axisAltX, y: axisAltY }
-        );
+        const pair01 = { x: axisWithDeadzone(axes[0] ?? 0), y: axisWithDeadzone(axes[1] ?? 0) };
+        const pair23 = { x: axisWithDeadzone(axes[2] ?? 0), y: axisWithDeadzone(axes[3] ?? 0) };
+        const pair01Power = Math.abs(pair01.x) + Math.abs(pair01.y);
+        const pair23Power = Math.abs(pair23.x) + Math.abs(pair23.y);
+        const moveCandidate = pair23Power > pair01Power ? pair23 : pair01;
         const triggerPressed = !!buttons[0]?.pressed;
         const primaryPressed = !!buttons[4]?.pressed;
         const secondaryPressed = !!buttons[5]?.pressed;
@@ -1877,8 +1873,9 @@
       }
 
       const locomotion = moveFromLeft || moveBest || { x: 0, y: 0 };
-      vrInput.moveStrafe = locomotion.x;
-      vrInput.moveForward = locomotion.y;
+      // Boost low analog ranges so subtle stick values still result in visible movement.
+      vrInput.moveStrafe = Math.max(-1, Math.min(1, locomotion.x * 2.2));
+      vrInput.moveForward = Math.max(-1, Math.min(1, locomotion.y * 2.2));
       if (Math.abs(locomotion.y) > 0.88) vrInput.sprint = true;
 
       if (!moveFromLeft && Math.abs(turnBestX) < 0.001 && moveBest) turnBestX = moveBest.x;
