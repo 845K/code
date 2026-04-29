@@ -1,4 +1,4 @@
-    const GAME_VERSION = 'v3.4';
+    const GAME_VERSION = 'v3.5';
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x121a27);
@@ -1367,8 +1367,9 @@
       moveForward: 0,
       moveStrafe: 0,
       sprint: false,
-      prevButtons: { leftTrigger: false, rightTrigger: false, rightPrimary: false, anyJump: false },
-      snapTurnCooldownMs: 0
+      prevButtons: { anyTrigger: false, anyDash: false, anyJump: false },
+      snapTurnCooldownMs: 0,
+      debug: { sources: 0, gamepads: 0, activeAxes: 0, activeButtons: 0 }
     };
     const vrHands = { left: null, right: null };
     let playerAvatar = null;
@@ -1626,7 +1627,7 @@
       const speedText = player.sprinting ? 'Turbo' : 'Cruise';
       const camText = cameraState.thirdPerson ? 'Camera: third-person' : 'Camera: first-person';
       const vrText = vrState.active ? 'VR: aan' : 'VR: uit';
-      statusEl.textContent = 'Stamina: ' + staminaText + '% | Status: ' + mood + ' | Tempo: ' + speedText + ' | ' + camText + ' | ' + vrText + ' | C = camera | Shift = sprint | F = dash';
+      statusEl.textContent = 'Stamina: ' + staminaText + '% | Status: ' + mood + ' | Tempo: ' + speedText + ' | ' + camText + ' | ' + vrText + ' | C = camera | Shift = sprint | F = dash' + getVrDebugSuffix();
       updateStatsHUD();
     }
 
@@ -1744,11 +1745,21 @@
       return value;
     }
 
+    function getVrDebugSuffix() {
+      if (!renderer.xr.isPresenting) return '';
+      const d = vrInput.debug;
+      return ' | VRin: src ' + d.sources + ' gp ' + d.gamepads + ' ax ' + d.activeAxes + ' btn ' + d.activeButtons;
+    }
+
     function updateVrControllers(deltaMs) {
       vrInput.moveForward = 0;
       vrInput.moveStrafe = 0;
       vrInput.sprint = false;
       vrInput.snapTurnCooldownMs = Math.max(0, vrInput.snapTurnCooldownMs - deltaMs);
+      vrInput.debug.sources = 0;
+      vrInput.debug.gamepads = 0;
+      vrInput.debug.activeAxes = 0;
+      vrInput.debug.activeButtons = 0;
 
       const session = renderer.xr.getSession();
       if (!session) return;
@@ -1756,9 +1767,14 @@
       let moveFromLeft = null;
       let moveBest = null;
       let turnBestX = 0;
+      let anyTriggerPressed = false;
+      let anyDashPressed = false;
       let anyJumpPressed = false;
       for (const source of session.inputSources) {
-        if (!source || !source.gamepad) continue;
+        if (!source) continue;
+        vrInput.debug.sources += 1;
+        if (!source.gamepad) continue;
+        vrInput.debug.gamepads += 1;
         const gp = source.gamepad;
         const handed = source.handedness || 'none';
         const buttons = gp.buttons || [];
@@ -1776,24 +1792,23 @@
         const primaryPressed = !!buttons[4]?.pressed;
         const secondaryPressed = !!buttons[5]?.pressed;
         const stickPressed = !!buttons[3]?.pressed;
+        const facePressed = !!buttons[2]?.pressed;
         const sprintPressed = !!buttons[1]?.pressed;
         const movePower = Math.abs(moveCandidate.x) + Math.abs(moveCandidate.y);
+        if (movePower > 0.05) vrInput.debug.activeAxes += 1;
+        for (const b of buttons) {
+          if (b?.pressed) {
+            vrInput.debug.activeButtons += 1;
+            break;
+          }
+        }
         if (!moveBest || movePower > (Math.abs(moveBest.x) + Math.abs(moveBest.y))) moveBest = moveCandidate;
         if (handed === 'left') moveFromLeft = moveCandidate;
         if (handed === 'right' && Math.abs(moveCandidate.x) > Math.abs(turnBestX)) turnBestX = moveCandidate.x;
-        anyJumpPressed = anyJumpPressed || primaryPressed || secondaryPressed || stickPressed;
+        anyTriggerPressed = anyTriggerPressed || triggerPressed;
+        anyDashPressed = anyDashPressed || primaryPressed;
+        anyJumpPressed = anyJumpPressed || secondaryPressed || stickPressed || facePressed;
         vrInput.sprint = vrInput.sprint || sprintPressed;
-
-        if (handed === 'left') {
-          if (triggerPressed && !vrInput.prevButtons.leftTrigger) interact();
-          vrInput.prevButtons.leftTrigger = triggerPressed;
-        } else if (handed === 'right') {
-          if (primaryPressed && !vrInput.prevButtons.rightPrimary) activateDash();
-          vrInput.prevButtons.rightPrimary = primaryPressed;
-
-          if (triggerPressed && !vrInput.prevButtons.rightTrigger) interact();
-          vrInput.prevButtons.rightTrigger = triggerPressed;
-        }
       }
 
       const locomotion = moveFromLeft || moveBest || { x: 0, y: 0 };
@@ -1807,6 +1822,10 @@
         vrInput.snapTurnCooldownMs = 220;
       }
 
+      if (anyTriggerPressed && !vrInput.prevButtons.anyTrigger) interact();
+      vrInput.prevButtons.anyTrigger = anyTriggerPressed;
+      if (anyDashPressed && !vrInput.prevButtons.anyDash) activateDash();
+      vrInput.prevButtons.anyDash = anyDashPressed;
       if (anyJumpPressed && !vrInput.prevButtons.anyJump) jumpPlayer();
       vrInput.prevButtons.anyJump = anyJumpPressed;
     }
@@ -3162,12 +3181,12 @@
       const timerText = Math.floor(totalSeconds / 60) + ':' + String(totalSeconds % 60).padStart(2, '0');
       const nearest = nearestInterestingThing();
       if (!nearest) {
-        statusEl.textContent = 'Stamina: ' + Math.round(player.stamina) + '% | ' + cycleLabel + ' | Wissel in ' + timerText + ' | Radar: alles rustig';
+        statusEl.textContent = 'Stamina: ' + Math.round(player.stamina) + '% | ' + cycleLabel + ' | Wissel in ' + timerText + ' | Radar: alles rustig' + getVrDebugSuffix();
         return;
       }
       const radar = nearest.name + ' op ' + Math.round(nearest.dist) + 'm';
       const mood = game.inHell ? 'Hel-hitte' : game.inCircus ? 'Circus-chaos' : player.sprinting ? 'Sprint' : 'Verkennen';
-      statusEl.textContent = 'Stamina: ' + Math.round(player.stamina) + '% | ' + cycleLabel + ' | Wissel in ' + timerText + ' | ' + mood + ' | Radar: ' + radar;
+      statusEl.textContent = 'Stamina: ' + Math.round(player.stamina) + '% | ' + cycleLabel + ' | Wissel in ' + timerText + ' | ' + mood + ' | Radar: ' + radar + getVrDebugSuffix();
     }
 
     function bobAndFace(time) {
