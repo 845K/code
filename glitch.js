@@ -1,4 +1,4 @@
-    const GAME_VERSION = 'v3.7';
+    const GAME_VERSION = 'v3.8';
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x121a27);
@@ -10,6 +10,23 @@
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.xr.enabled = true;
     document.body.appendChild(renderer.domElement);
+
+    function makeVrStatusLabel() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1024;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false }));
+      sprite.scale.set(1.65, 0.2, 1);
+      sprite.position.set(0, -0.12, -1.1);
+      sprite.visible = false;
+      camera.add(sprite);
+      scene.add(camera);
+      return { sprite, canvas, ctx, texture };
+    }
+    const vrStatusLabel = makeVrStatusLabel();
 
     const hemi = new THREE.HemisphereLight(0xffffff, 0x1b1b2d, 1.25);
     scene.add(hemi);
@@ -1367,6 +1384,7 @@
       moveForward: 0,
       moveStrafe: 0,
       sprint: false,
+      selectHeld: false,
       prevButtons: { anyTrigger: false, anyDash: false, anyJump: false },
       snapTurnCooldownMs: 0,
       debug: { sources: 0, gamepads: 0, stdPads: 0, activeAxes: 0, activeButtons: 0 }
@@ -1756,13 +1774,30 @@
       if (!vrStatusTopEl) return;
       if (!renderer.xr.isPresenting) {
         vrStatusTopEl.style.display = 'none';
+        vrStatusLabel.sprite.visible = false;
         return;
       }
       vrStatusTopEl.style.display = 'block';
       const d = vrInput.debug;
       const moveX = vrInput.moveStrafe.toFixed(2);
       const moveY = vrInput.moveForward.toFixed(2);
-      vrStatusTopEl.textContent = 'VR input | src ' + d.sources + ' gp ' + d.gamepads + ' std ' + d.stdPads + ' ax ' + d.activeAxes + ' btn ' + d.activeButtons + ' | move X ' + moveX + ' Y ' + moveY;
+      const text = 'VR input | src ' + d.sources + ' gp ' + d.gamepads + ' std ' + d.stdPads + ' ax ' + d.activeAxes + ' btn ' + d.activeButtons + ' | move X ' + moveX + ' Y ' + moveY + (vrInput.selectHeld ? ' | SELECT' : '');
+      vrStatusTopEl.textContent = text;
+
+      vrStatusLabel.sprite.visible = true;
+      const ctx = vrStatusLabel.ctx;
+      ctx.clearRect(0, 0, vrStatusLabel.canvas.width, vrStatusLabel.canvas.height);
+      ctx.fillStyle = 'rgba(10,14,22,0.92)';
+      ctx.fillRect(0, 0, vrStatusLabel.canvas.width, vrStatusLabel.canvas.height);
+      ctx.strokeStyle = 'rgba(255,214,122,0.68)';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(2, 2, vrStatusLabel.canvas.width - 4, vrStatusLabel.canvas.height - 4);
+      ctx.fillStyle = '#ffe9c9';
+      ctx.font = '700 42px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, vrStatusLabel.canvas.width / 2, vrStatusLabel.canvas.height / 2);
+      vrStatusLabel.texture.needsUpdate = true;
     }
 
     function updateVrControllers(deltaMs) {
@@ -2333,6 +2368,7 @@
     if (vrButtonEl) vrButtonEl.addEventListener('click', toggleVR);
     renderer.xr.addEventListener('sessionstart', () => {
       vrState.active = true;
+      vrInput.selectHeld = false;
       cameraState.thirdPerson = false;
       document.exitPointerLock();
       mouseMove.forward = false;
@@ -2340,14 +2376,29 @@
       if (vrHands.left) vrHands.left.visible = true;
       if (vrHands.right) vrHands.right.visible = true;
       crosshairEl.style.display = 'none';
+      const session = renderer.xr.getSession();
+      if (session) {
+        session.addEventListener('selectstart', () => {
+          vrInput.selectHeld = true;
+          interact();
+        });
+        session.addEventListener('selectend', () => {
+          vrInput.selectHeld = false;
+        });
+        session.addEventListener('squeezestart', () => {
+          jumpPlayer();
+        });
+      }
       setMessage('VR actief. Linker stick = lopen, rechter stick = draaien, trigger = praten/interacten, A/X = springen.');
       updateFunHUD();
       updateVrButtonState();
     });
     renderer.xr.addEventListener('sessionend', () => {
       vrState.active = false;
+      vrInput.selectHeld = false;
       if (vrHands.left) vrHands.left.visible = false;
       if (vrHands.right) vrHands.right.visible = false;
+      vrStatusLabel.sprite.visible = false;
       if (game.mode !== 'creator') crosshairEl.style.display = 'block';
       setMessage('VR gestopt. Je bent terug in standaard browser-modus.');
       updateFunHUD();
@@ -2376,6 +2427,9 @@
       if (renderer.xr.isPresenting) {
         forward += vrInput.moveForward;
         strafe += vrInput.moveStrafe;
+        if (Math.abs(vrInput.moveForward) < 0.01 && Math.abs(vrInput.moveStrafe) < 0.01 && vrInput.selectHeld) {
+          forward -= 1;
+        }
       }
       if (!forward && !strafe) return;
       const wantsSprintKeyboard = (keys['shift'] || keys['shiftleft'] || keys['shiftright']);
